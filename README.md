@@ -21,7 +21,7 @@ $ test_conf.py dev
 ```
 
 Produces the following result:
-```json
+```JSON
 {'apiTimeout': (9.05, 60),
  'dbServer': 'ocsemysqlcl:3306',
  'env': 'dev',
