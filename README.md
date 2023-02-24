@@ -22,7 +22,18 @@ $ test_conf.py dev
 
 Produces the following result:
 ```json
-$ pip install pydantic[dotenv]
+{'apiTimeout': (9.05, 60),
+ 'dbServer': 'ocsemysqlcl:3306',
+ 'env': 'dev',
+ 'hdrData': {'Content-Type': 'application/json'},
+ 'mongoPwd': '>>> missing SECRETS file <<<',
+ 'mongoUrl': 'mongodb://phoenix:>>> missing SECRETS file <<<@localhost:27017/',
+ 'mqServer': 'localhost',
+ 'platform': 'Windows',
+ 'portalApi': 'http://localhost',
+ 'routingDbPort': 8012,
+ 'server': 'CHARON',
+ 'trackingDbPort': 8006}
 ```
 
 To get a deeper and better understanding of what the code does, and what's possible you should read my Mediom article [Lovely Python config handling using Pydantic](https://medium.com/@wilde.consult/lovely-python-config-handling-using-pydantic-852d9be2320f) that this code is developed for.
