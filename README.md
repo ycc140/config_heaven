@@ -8,8 +8,10 @@ To be able to run this code you need to install the eminent third party [_Pydant
 
 You can install it like this:
 ```shell
-$ pip install pydantic[dotenv]
+$ pip install pydantic-settings[dotenv]
 ```
+
+> 📝 **Note:** Pydantic have just release v2 and it’s not backwards compatible. No worries I have updated this example to be compliant with the new version.
 
 The _configurator.py_ module contains the needed code. _test_config.py_ is a 
 small test program that is helpful for testing the response you will get on 
