@@ -4,9 +4,9 @@ Copyright: Wilde Consulting
   License: Apache 2.0
 
 VERSION INFO::
-    $Repo: fastapi_mongo
+    $Repo: config_heaven
   $Author: Anders Wiklund
-    $Date: 2023-02-18 00:27:47
+    $Date: 2023-07-14 22:54:46
      $Rev: 1
 """
 
@@ -14,23 +14,27 @@ VERSION INFO::
 import os
 import sys
 import site
-from typing import Union
+from typing import Union, Type, Tuple
 
 # Third party modules
-from pydantic import BaseSettings, validator
+from pydantic import Field, field_validator
+from pydantic_settings import (BaseSettings, SettingsConfigDict,
+                               PydanticBaseSettingsSource)
 
 # Constants
-MISSING_SECRET = '>>> missing SECRETS file <<<'
-""" Error message for missing secrets file. """
 MISSING_ENV = '>>> undefined ENV parameter <<<'
 """ Error message for missing environment variables. """
+MISSING_SECRET = '>>> missing SECRETS file <<<'
+""" Error message for missing secrets file. """
 SECRETS_DIR = ('/run/secrets'
                if os.path.exists('/.dockerenv')
                else f'{site.USER_BASE}/secrets')
-""" This is where your secrets are stored, either in Docker or locally. """
+""" This is where your secrets are stored (in Docker or locally). """
 PLATFORM = {'linux': 'Linux', 'linux2': 'Linux',
             'win32': 'Windows', 'darwin': 'MacOS'}
 """ Known platforms in my end of the world. """
+ENVIRONMENT = os.getenv('ENVIRONMENT', MISSING_ENV)
+""" Define environment. """
 
 
 # --------------------------------------------------------------
@@ -46,8 +50,18 @@ if not os.path.exists('/.dockerenv'):
 
 # ------------------------------------------------------------------------
 #
-class Base(BaseSettings):
+class Common(BaseSettings):
     """ Common configuration parameters shared between all environments.
+
+    Read configuration parameters defined in this class, and from
+    ENVIRONMENT variables and from the .env file.
+
+    The source priority is changed (from default) to the following
+    order (from highest to lowest)::
+      - init_settings
+      - dotenv_settings
+      - env_settings
+      - file_secret_settings
 
     The following environment variables should already be defined::
       - HOSTNAME (on Linux servers only - set by OS)
@@ -66,102 +80,119 @@ class Base(BaseSettings):
 
     You know you are running in Docker when the "/.dockerenv" file exists.
     """
-
-    class Config:
-        """ Enable the usage of secrets. """
-        secrets_dir = SECRETS_DIR
+    model_config = SettingsConfigDict(extra='ignore',
+                                      secrets_dir = SECRETS_DIR,
+                                      env_file_encoding = 'utf-8',
+                                      env_file = f'{site.USER_BASE}/.env')
 
     # secrets...
     mongoPwd: str = MISSING_SECRET
+    mongo_url: str = MISSING_SECRET
 
     # Normal stuff.
-    routingDbPort = 8012
-    trackingDbPort = 8006
-    mqServer = 'P-W-MQ01'
-    apiTimeout = (9.05, 60)
+    routingDbPort: int = 8012
+    trackingDbPort: int = 8006
+    mqServer: str = 'P-W-MQ01'
+    apiTimeout: tuple = (9.05, 60)
     env: str = os.getenv('ENVIRONMENT', 'dev')
-    hdrData = {'Content-Type': 'application/json'}
+    hdrData: dict = {'Content-Type': 'application/json'}
     platform: str = PLATFORM.get(sys.platform, 'other')
-    server: str = os.getenv(('COMPUTERNAME'
-                             if sys.platform == 'win32'
-                             else 'HOSTNAME'), MISSING_ENV)
+    server: str = Field(MISSING_ENV, alias=('COMPUTERNAME'
+                                            if sys.platform == 'win32'
+                                            else 'NAME'))
 
-    @validator('server', always=True, pre=True)
+    @field_validator('server')
     def remove_domain(cls, value) -> str:
         """ Return server name stripped of possible domain part. """
         return value.upper().split('.')[0]
 
+    @classmethod
+    def settings_customise_sources(
+        cls,
+        settings_cls: Type[BaseSettings],
+        init_settings: PydanticBaseSettingsSource,
+        env_settings: PydanticBaseSettingsSource,
+        dotenv_settings: PydanticBaseSettingsSource,
+        file_secret_settings: PydanticBaseSettingsSource,
+    ) -> Tuple[PydanticBaseSettingsSource, ...]:
+        """ Change source priority order (env trumps environment). """
+        return (init_settings, dotenv_settings,
+                env_settings, file_secret_settings)
+
 
 # ------------------------------------------------------------------------
 #
-class Dev(Base):
-    """ Configuration parameters for DEV environment. """
+class Dev(Common):
+    """ Configuration parameters for DEV environment.
 
+    Values from dev.env supersedes previous values when the file exists.
+    """
+
+    env: str = 'dev'
     mqServer: str = 'localhost'
     dbServer: str = 'localhost:3306'
     portalApi: str = 'http://localhost'
-    mongoUrl: str = f'mongodb://phoenix:{Base().mongoPwd}@localhost:27017/'
+    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@localhost:27017/'
 
-    class Config:
-        """ Context aware env file. """
-        env_file_encoding = 'utf-8'
-        env_file = f'{site.USER_BASE}/dev.env'
+    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
 
 
 # ------------------------------------------------------------------------
 #
-class Test(Base):
-    """ Configuration parameters for TEST environment. """
+class Test(Common):
+    """ Configuration parameters for TEST environment.
 
+    Values from test.env supersedes previous values when the file exists.
+    """
+
+    env: str = 'test'
     dbServer: str = 't-l-docker01:3306'
-    mongoUrl: str = f'mongodb://phoenix:{Base().mongoPwd}@t-l-docker01:27017/'
+    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-docker01:27017/'
 
-    class Config:
-        """ Context aware env file. """
-        env_file_encoding = 'utf-8'
-        env_file = f'{site.USER_BASE}/test.env'
+    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
 
 
 # ------------------------------------------------------------------------
 #
-class Stage(Base):
-    """ Configuration parameters for STAGE environment. """
+class Stage(Common):
+    """ Configuration parameters for STAGE environment.
 
-    routingDbPort = 8013
-    trackingDbPort = 8007
+     Values from stage.env supersedes previous values when the file exists.
+     """
+
+    env: str = 'stage'
+    routingDbPort: int = 8013
+    trackingDbPort: int = 8007
     dbServer: str = 't-l-docker01:3307'
-    mongoUrl: str = f'mongodb://phoenix:{Base().mongoPwd}@t-l-docker01:27117/'
+    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-docker01:27117/'
 
-    class Config:
-        """ Context aware env file. """
-        env_file_encoding = 'utf-8'
-        env_file = f'{site.USER_BASE}/stage.env'
+    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
 
 
 # ------------------------------------------------------------------------
 #
-class Prod(Base):
-    """ Configuration parameters for PROD environment. """
+class Prod(Common):
+    """ Configuration parameters for PROD environment.
 
+    Values from prod.env supersedes previous values when the file exists.
+    """
+
+    env: str = 'prod'
     dbServer: str = 'ocsemysqlcl:3306'
-    mongoUrl: str = f'mongodb://phoenix:{Base().mongoPwd}@t-l-webtools01:27017/'
+    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-webtools01:27017/'
 
-    class Config:
-        """ Context aware env file. """
-        env_file_encoding = 'utf-8'
-        env_file = f'{site.USER_BASE}/prod.env'
+    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
 
 
 # ------------------------------------------------------------------------
 
+# Translation table between ENVIRONMENT value and their classes.
 _setup = dict(
     dev=Dev,
     test=Test,
     prod=Prod,
     stage=Stage
 )
-""" Translation table between ENVIRONMENT value and their classes. """
 
-config: Union[Dev, Test, Prod, Stage] = \
-    _setup[os.getenv('ENVIRONMENT', 'dev').lower()]()
-""" Instantiate the required platform environment. """
+# Validate and instantiate specified environment configuration.
+config: Union[Dev, Test, Prod, Stage] = _setup[ENVIRONMENT]()

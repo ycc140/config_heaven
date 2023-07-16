@@ -4,30 +4,16 @@ Copyright: Wilde Consulting
   License: Apache 2.0
 
 VERSION INFO::
-    $Repo: fastapi_mongo
+    $Repo: config_heaven
   $Author: Anders Wiklund
-    $Date: 2023-02-18 00:27:47
+    $Date: 2023-07-14 22:54:46
      $Rev: 1
 """
 
 # BUILTIN modules
 import os
 import argparse
-from enum import Enum
 from pprint import pprint
-
-
-# ---------------------------------------------------------
-#
-class Environment(str, Enum):
-    """ Defines available environment platforms. """
-    dev = 'dev'
-    test = 'test'
-    prod = 'prod'
-    stage = 'stage'
-
-    def __str__(self):
-        return self.value
 
 
 # ---------------------------------------------------------
@@ -37,7 +23,7 @@ if __name__ == "__main__":
     Form = argparse.ArgumentDefaultsHelpFormatter
     description = 'A utility script to test the configurator.py file with different environments.'
     parser = argparse.ArgumentParser(description=description, formatter_class=Form)
-    parser.add_argument('environment', type=Environment, choices=list(Environment),
+    parser.add_argument('environment', type=str, choices=['dev','test','prod','stage'],
                         help="Specify ENVIRONMENT to use")
     args = parser.parse_args()
 
@@ -47,4 +33,4 @@ if __name__ == "__main__":
 
     from configurator import config
 
-    pprint(config.dict())
+    pprint(config.model_dump())
