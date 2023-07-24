@@ -38,4 +38,4 @@ Produces the following result:
  'trackingDbPort': 8006}
 ```
 
-To get a deeper and better understanding of what the code does, and what's possible you should read my Mediom article [Lovely Python config handling using Pydantic](https://medium.com/@wilde.consult/lovely-python-config-handling-using-pydantic-852d9be2320f) that this code is developed for.
+To get a deeper and better understanding of what the code does, and what's possible you should read my Medium article [Lovely Python config handling using Pydantic](https://medium.com/@wilde.consult/lovely-python-config-handling-using-pydantic-852d9be2320f) that this code is developed for.
