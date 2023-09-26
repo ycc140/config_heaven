@@ -6,7 +6,7 @@ Copyright: Wilde Consulting
 VERSION INFO::
     $Repo: config_heaven
   $Author: Anders Wiklund
-    $Date: 2023-07-14 22:54:46
+    $Date: 2023-09-26 17:12:37
      $Rev: 1
 """
 
@@ -36,7 +36,6 @@ PLATFORM = {'linux': 'Linux', 'linux2': 'Linux',
 ENVIRONMENT = os.getenv('ENVIRONMENT', MISSING_ENV)
 """ Define environment. """
 
-
 # --------------------------------------------------------------
 # This needs to be done before the Base class gets evaluated, and
 # to avoid getting five UserWarnings that the path does not exist.
@@ -57,7 +56,7 @@ class Common(BaseSettings):
     ENVIRONMENT variables and from the .env file.
 
     The source priority is changed (from default) to the following
-    order (from highest to lowest)::
+    order (from highest to lowest):
       - init_settings
       - dotenv_settings
       - env_settings
@@ -68,12 +67,12 @@ class Common(BaseSettings):
       - COMPUTERNAME (on Windows servers only - set by OS)
       - ENVIRONMENT (on all servers - "dev" is default when missing)
 
-    Path where your <environment>.env file should be placed::
+    Path where your <environment>.env file should be placed:
       - linux: /home/<user>/.local
       - darwin: /home/<user>/.local
       - win32: C:\\Users\\<user>\\AppData\\Roaming\\Python'
 
-    Path where your secret files should be placed::
+    Path where your secret files should be placed:
       - linux: /home/<user>/.local/secrets
       - darwin: /home/<user>/.local/secrets
       - win32: C:\\Users\\<user>\\AppData\\Roaming\\Python\\secrets'
@@ -81,9 +80,9 @@ class Common(BaseSettings):
     You know you are running in Docker when the "/.dockerenv" file exists.
     """
     model_config = SettingsConfigDict(extra='ignore',
-                                      secrets_dir = SECRETS_DIR,
-                                      env_file_encoding = 'utf-8',
-                                      env_file = f'{site.USER_BASE}/.env')
+                                      secrets_dir=SECRETS_DIR,
+                                      env_file_encoding='utf-8',
+                                      env_file=f'{site.USER_BASE}/.env')
 
     # secrets...
     mongoPwd: str = MISSING_SECRET
@@ -102,18 +101,19 @@ class Common(BaseSettings):
                                             else 'NAME'))
 
     @field_validator('server')
-    def remove_domain(cls, value) -> str:
+    @classmethod
+    def remove_domain(cls, value: str) -> str:
         """ Return server name stripped of possible domain part. """
         return value.upper().split('.')[0]
 
     @classmethod
     def settings_customise_sources(
-        cls,
-        settings_cls: Type[BaseSettings],
-        init_settings: PydanticBaseSettingsSource,
-        env_settings: PydanticBaseSettingsSource,
-        dotenv_settings: PydanticBaseSettingsSource,
-        file_secret_settings: PydanticBaseSettingsSource,
+            cls,
+            settings_cls: Type[BaseSettings],
+            init_settings: PydanticBaseSettingsSource,
+            env_settings: PydanticBaseSettingsSource,
+            dotenv_settings: PydanticBaseSettingsSource,
+            file_secret_settings: PydanticBaseSettingsSource,
     ) -> Tuple[PydanticBaseSettingsSource, ...]:
         """ Change source priority order (env trumps environment). """
         return (init_settings, dotenv_settings,
@@ -125,7 +125,7 @@ class Common(BaseSettings):
 class Dev(Common):
     """ Configuration parameters for DEV environment.
 
-    Values from dev.env supersedes previous values when the file exists.
+    Values from dev.env supersede previous values when the file exists.
     """
 
     env: str = 'dev'
@@ -134,7 +134,7 @@ class Dev(Common):
     portalApi: str = 'http://localhost'
     mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@localhost:27017/'
 
-    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
+    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
 
 
 # ------------------------------------------------------------------------
@@ -149,7 +149,7 @@ class Test(Common):
     dbServer: str = 't-l-docker01:3306'
     mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-docker01:27017/'
 
-    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
+    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
 
 
 # ------------------------------------------------------------------------
@@ -157,7 +157,7 @@ class Test(Common):
 class Stage(Common):
     """ Configuration parameters for STAGE environment.
 
-     Values from stage.env supersedes previous values when the file exists.
+     Values from stage.env supersede previous values when the file exists.
      """
 
     env: str = 'stage'
@@ -166,7 +166,7 @@ class Stage(Common):
     dbServer: str = 't-l-docker01:3307'
     mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-docker01:27117/'
 
-    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
+    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
 
 
 # ------------------------------------------------------------------------
@@ -181,7 +181,7 @@ class Prod(Common):
     dbServer: str = 'ocsemysqlcl:3306'
     mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-webtools01:27017/'
 
-    model_config = SettingsConfigDict(env_file = f'{site.USER_BASE}f/{env}.env')
+    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
 
 
 # ------------------------------------------------------------------------
