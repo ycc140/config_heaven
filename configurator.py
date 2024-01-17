@@ -17,11 +17,13 @@ import site
 from typing import Union, Type, Tuple
 
 # Third party modules
-from pydantic import Field, field_validator
+from pydantic import Field, computed_field
 from pydantic_settings import (BaseSettings, SettingsConfigDict,
                                PydanticBaseSettingsSource)
 
 # Constants
+USER_BASE = site.getuserbase()
+""" This is required when programs are frozen."""
 MISSING_ENV = '>>> undefined ENV parameter <<<'
 """ Error message for missing environment variables. """
 MISSING_SECRET = '>>> missing SECRETS file <<<'
@@ -62,10 +64,10 @@ class Common(BaseSettings):
       - env_settings
       - file_secret_settings
 
-    The following environment variables should already be defined::
+    The following environment variables should already be defined:
       - HOSTNAME (on Linux servers only - set by OS)
       - COMPUTERNAME (on Windows servers only - set by OS)
-      - ENVIRONMENT (on all servers - "dev" is default when missing)
+      - ENVIRONMENT (on all servers)
 
     Path where your <environment>.env file should be placed:
       - linux: /home/<user>/.local
@@ -76,35 +78,44 @@ class Common(BaseSettings):
       - linux: /home/<user>/.local/secrets
       - darwin: /home/<user>/.local/secrets
       - win32: C:\\Users\\<user>\\AppData\\Roaming\\Python\\secrets'
-
-    You know you are running in Docker when the "/.dockerenv" file exists.
     """
     model_config = SettingsConfigDict(extra='ignore',
                                       secrets_dir=SECRETS_DIR,
                                       env_file_encoding='utf-8',
-                                      env_file=f'{site.USER_BASE}/.env')
+                                      env_file=f'{USER_BASE}/.env')
 
-    # secrets...
-    mongoPwd: str = MISSING_SECRET
-    mongo_url: str = MISSING_SECRET
-
-    # Normal stuff.
+    # constant parameters.
     routingDbPort: int = 8012
     trackingDbPort: int = 8006
     mqServer: str = 'P-W-MQ01'
     apiTimeout: tuple = (9.05, 60)
-    env: str = os.getenv('ENVIRONMENT', 'dev')
-    hdrData: dict = {'Content-Type': 'application/json'}
-    platform: str = PLATFORM.get(sys.platform, 'other')
-    server: str = Field(MISSING_ENV, alias=('COMPUTERNAME'
-                                            if sys.platform == 'win32'
-                                            else 'NAME'))
 
-    @field_validator('server')
-    @classmethod
-    def remove_domain(cls, value: str) -> str:
-        """ Return server name stripped of possible domain part. """
-        return value.upper().split('.')[0]
+    # Environment depending parameters.
+    env: str = ENVIRONMENT
+    platform: str = PLATFORM.get(sys.platform, 'other')
+
+    # Secrets depending parameters.
+    serviceApiKey: str = Field(MISSING_SECRET, alias='service_api_key')
+
+    @computed_field
+    @property
+    def hdrData(self) -> dict:
+        """ Return updated API header (added serviceApiKey secret).
+
+        :return: Updated API header.
+        """
+        return {'Content-Type': 'application/json',
+                'X-API-Key': f'{self.serviceApiKey}'}
+
+    @computed_field
+    @property
+    def server(self) -> str:
+        """ Return local server name stripped of possible domain part.
+
+        :return: Server name in upper case.
+        """
+        name = ('COMPUTERNAME' if sys.platform == 'win32' else 'HOSTNAME')
+        return os.getenv(name, MISSING_ENV).upper().split('.')[0]
 
     @classmethod
     def settings_customise_sources(
@@ -127,14 +138,12 @@ class Dev(Common):
 
     Values from dev.env supersede previous values when the file exists.
     """
+    model_config = SettingsConfigDict(env_file=f'{USER_BASE}/{Common().env}.env')
 
-    env: str = 'dev'
     mqServer: str = 'localhost'
     dbServer: str = 'localhost:3306'
-    portalApi: str = 'http://localhost'
-    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@localhost:27017/'
-
-    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
+    apiRoot: str = 'http://localhost'
+    mongoUrl: str = Field(MISSING_SECRET, alias=f'mongo_url_{Common().env}')
 
 
 # ------------------------------------------------------------------------
@@ -144,12 +153,11 @@ class Test(Common):
 
     Values from test.env supersedes previous values when the file exists.
     """
+    model_config = SettingsConfigDict(env_file=f'{USER_BASE}/{Common().env}.env')
 
-    env: str = 'test'
     dbServer: str = 't-l-docker01:3306'
-    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-docker01:27017/'
-
-    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
+    apiRoot: str = 'http://internal_api_test_host'
+    mongoUrl: str = Field(MISSING_SECRET, alias=f'mongo_url_{Common().env}')
 
 
 # ------------------------------------------------------------------------
@@ -159,14 +167,13 @@ class Stage(Common):
 
      Values from stage.env supersede previous values when the file exists.
      """
+    model_config = SettingsConfigDict(env_file=f'{USER_BASE}/{Common().env}.env')
 
-    env: str = 'stage'
     routingDbPort: int = 8013
     trackingDbPort: int = 8007
     dbServer: str = 't-l-docker01:3307'
-    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-docker01:27117/'
-
-    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
+    apiRoot: str = 'http://internal_api_stage_host'
+    mongoUrl: str = Field(MISSING_SECRET, alias=f'mongo_url_{Common().env}')
 
 
 # ------------------------------------------------------------------------
@@ -176,12 +183,11 @@ class Prod(Common):
 
     Values from prod.env supersedes previous values when the file exists.
     """
+    model_config = SettingsConfigDict(env_file=f'{USER_BASE}/{Common().env}.env')
 
-    env: str = 'prod'
     dbServer: str = 'ocsemysqlcl:3306'
-    mongoUrl: str = f'mongodb://phoenix:{Common().mongoPwd}@t-l-webtools01:27017/'
-
-    model_config = SettingsConfigDict(env_file=f'{site.USER_BASE}/{env}.env')
+    apiRoot: str = 'http://internal_api_prod_host'
+    mongoUrl: str = Field(MISSING_SECRET, alias=f'mongo_url_{Common().env}')
 
 
 # ------------------------------------------------------------------------
